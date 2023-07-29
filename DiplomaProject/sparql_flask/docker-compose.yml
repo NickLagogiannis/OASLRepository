@@ -1,0 +1,23 @@
+version: "3.7" 
+services:
+  web:  
+    # entrypoint: /bin/sh
+    # stdin_open: true
+    # tty: true
+    build: 
+      context: ./frontend/python
+    ports: 
+      - 8085:5000
+    depends_on:
+      - virtuoso
+    volumes:
+      - ./frontend/src:/usr/src/app:rw
+  virtuoso:
+    container_name: virtuoso_box  
+    build:
+      context: ./virtuoso     
+    ports: 
+      - 1111:1111
+      - 8890:8890
+
+    

@@ -1,0 +1,36 @@
+
+http://localhost:8890/sparql "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX myOnt: <https://www.example.com/service/googleBooks_API#>
+PREFIX openapi: <http://www.intelligence.tuc.gr/ns/open-api#>
+PREFIX sh:    <http://www.w3.org/ns/shacl#>
+
+SELECT *
+WHERE{
+    ?service openapi:info ?info .
+    ?info openapi:serviceTitle ?title .
+    ?service openapi:supportedOperation ?operation .
+    ?operation a openapi:Operation .
+    ?operation openapi:name ?operationName .
+    ?operation openapi:parameter ?parameter .
+    ?parameter openapi:name ?paramName .
+    ?parameter a          openapi:Parameter .
+    ?parameter a          ?loc.
+    ?parameter openapi:schema	?schema_param .
+    ?schema_param sh:datatype  xsd:string	.
+}"
+
+http://localhost:8890/sparql "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX myOnt: <https://www.example.com/service/googleBooks_API#>
+PREFIX openapi: <http://www.intelligence.tuc.gr/ns/open-api#>
+PREFIX sh:    <http://www.w3.org/ns/shacl#>
+
+SELECT *
+WHERE{
+    ?s ?p ?o
+}"

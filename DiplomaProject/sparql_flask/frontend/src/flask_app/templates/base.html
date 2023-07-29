@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Title -->
+  {% if title %}
+    <title>{{ title }} - OASL Translator</title>
+  {% else %}
+    <title>OASL Translator</title>
+  {% endif %}
+
+  <link rel="stylesheet" href="../../static/css/main.css">
+</head>
+
+<body> 
+  <div id="super-wrapper">
+    <header>
+      
+      <div >
+        <a href="#"><img src="../static/images/intelligence.gif" alt="Logo"></a>
+
+      </div>
+      <div class="header-text-container">
+        <h2>OpenAPI SPARQL Language Query Executioner</h2> <!--, by Nikos Lagogiannis TM</h3>-->
+        <!-- <h3>A Virtuoso based Query Simplification Layer.</h3> -->
+        <!-- <h4>Made by Nikos Lago</h4> -->
+      </div>
+      <div >
+        <a href="#"><img src="../static/images/Logo.ico" alt="TUC Logo"></a>
+        <!-- <h3>Department of Electrical and Computer Engineering</h3>
+        <h2>Technical University of Crete</h2> -->
+      </div>
+    </header>
+
+    <nav class="top-nav">
+      <!-- <div></div> -->
+      <ul class="navlist">
+        <li><a href="{{ url_for('index') }}">Home</a></li>
+        <li><a href="{{ url_for('upload') }}">Upload</a></li>
+        <li><a href="{{ url_for('instructions') }}">Instructions</a></li>
+        <li><a href="{{ url_for('execute') }}">Execute</a></li>
+      </ul>
+    </nav>
+  
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  
+    <footer>
+      <h3>OpenAPI SPARQL.</h3>
+      <p></p>
+      <p>Copyright © Intelligence. All rights reserved</p>
+    </footer>
+
+  </div>
+  
+</body>
+</html>

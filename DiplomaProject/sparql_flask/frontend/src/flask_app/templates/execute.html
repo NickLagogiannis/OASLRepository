@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="results-table-container">
+  <h2>Query</h2>
+  <form class="execute-form" action="" method="post">
+    <div>
+      <!-- <input type="text" name="query" id="query_box"> -->
+      <textarea class="query-box" name="query_box" id="query_box" cols="50" rows="10" placeholder="Query...">{{ default_query }}</textarea>
+    </div>
+    <div>
+      <button class="custom_button" type="submit" value="submit">Submit</button>
+    </div>
+  </form>
+  {% if show_timings %}
+    <h2>Timings</h2>
+    <span>Translation time whole: {{ time_translate }}, </span>
+    <span>Translation time jar: {{ time_translate_inner }}, </span>
+    <span>Virtuoso query time: {{ time_query }}, </span>
+    <span>Total time: {{ time_all }}</span>
+  {% endif %}
+  <h2>Output</h2>
+  {% if res_text|length > 1 %}
+  <div class="result-box">
+    {% for line in res_text %}
+    <pre>{{ line }}</pre>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if err_text|length > 1 %}
+  <div class="result-box">
+    {% for line in err_text %}
+    <pre>{{ line }}</pre>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="results-table-container">
+  <table class="results-table">
+    <tr>
+      {% for item in table_headers %}
+      <th>{{ item }}</th>
+      {% endfor %}
+    </tr>
+    {% for row in table_content %}
+    <tr>
+      {% for item in row %}
+      <td>
+        {{ item }}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

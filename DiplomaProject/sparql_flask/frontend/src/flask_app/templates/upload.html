@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  <form method=post enctype=multipart/form-data>
+    <!-- <div class='form-group'>
+      <input type=file name=file required>
+      <input type=submit value=Upload>
+    </div> -->
+    {% if message %}
+    <div>{{ message }}</div>
+    {% endif %}
+    <div>
+      <input class="custom-file-input" type=file name="files[]" multiple="true">
+      <input class="custom_button" type=submit value=Upload>
+    </div>
+  </form>
+  {% if file_list %}
+  <div class="file-list">
+    <ul>
+      {% for fl in file_list%}
+      <li>{{ fl }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+{% endblock %}

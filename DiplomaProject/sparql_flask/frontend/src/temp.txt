@@ -1,0 +1,11 @@
+`
+SELECT ?var2 ?var3 ?tagName1 ?secType1
+WHERE { 
+Service title ?var2
+Request method GET
+
+}
+
+curl -d -u dba:dba --verbose --url "http://virtuoso_box:8890/sparql-graph-crud-auth?graph-uri=http://example/upsto" -T "/usr/src/app/flask_app/static/miscellaneous/upsto_05_09_2021_10_06_05.ttl"
+
+curl --digest -u "dba:dba" --verbose --url "http://virtuoso_box:8890/sparql-graph-crud-auth?graph-uri=urn:graph:update:test:post" -T upsto_26-06-2022_12-24-06.ttl
