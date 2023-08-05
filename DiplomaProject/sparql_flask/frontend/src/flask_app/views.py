@@ -188,6 +188,9 @@ def execute():
         # Executes the translator jar with the query as input.
 
         p = sp.Popen(["java", "-jar", jar_translator, query], stdout=sp.PIPE, stderr=sp.PIPE)
+        # P = sp.Popen(["java", "-jar", jar_translator, query], stdout=sp.PIPE, stderr=sp.PIPE)
+        # result = subprocess.run(['java', '-jar', jar_translator, query], capture_output=True, text=True)
+        #     return f"Java Output: {result.stdout}"
         
         time_translate_start = time.perftime_all_start = time.perf_counter_ns()
         sout, serr = p.communicate(input=query)
@@ -203,7 +206,13 @@ def execute():
         
         # virt_path = 'http://127.0.0.1:5000/sparql'
         # dm(f'type uout: {type(uout)}')
-        # dm(uout)
+        dm("------------------------------- \n")
+        dm("------------------------------- \n")
+        dm("__________________________________\n")
+        dm(uerr)
+        dm("___________________________________ \n")
+        dm("------------------------------- \n")
+        dm("------------------------------- \n")
         try:
             time_query_start = time.perftime_all_start = time.perf_counter_ns()
             response = requests.get(virt_path, params={'query': uout})
@@ -212,6 +221,9 @@ def execute():
             erout=['Could not communicate with virtuoso']
         else:
             try:
+                dm("------------------------------- \n")
+                dm(response.text)
+                dm("------------------------------- \n")
                 resp_dict = xmltodict.parse(response.text)
                 dm_pp(resp_dict, width=160)
                 
@@ -260,7 +272,9 @@ def execute():
                     pass
             except Exception as ex:
                 dm(str(ex))
+                dm("Done expet:\n")
                 erout=response.text.split('\n')
+                dm(erout)
                 pass
         
         default_query=query
@@ -302,16 +316,16 @@ def sparql():
     q = request.args.get('query')
     # http://127.0.0.1:5000/sparql?query="ksdjaf"
     if not q:
-        # dm(f"Request didn't contain a query, {request.text}")
+        dm(f"Request didn't contain a query, {request.text}")
         return make_response("Record not found", 400)
     
-    # dm("all good.")
+    dm("all good.")
     res = requests.get('http://virtuoso_box:8890/sparql', params={'query': q})
-    # dm(f"{res.text=}, {res.status_code=}, headers: {res.raw.headers.items()}")
+    dm(f"{res.text=}, {res.status_code=}, headers: {res.raw.headers.items()}")
     
     new_content = gzip.compress(res.content)
     
     resp = Response(new_content, res.status_code, res.raw.headers.items())
-    # dm(f"{resp=}")
+    dm(f"{resp=}")
 
     return resp

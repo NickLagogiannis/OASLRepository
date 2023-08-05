@@ -11,4 +11,4 @@ jar_executor = "flask_app/static/miscellaneous/sparql_executor.jar"
 
 from . import views, models
 
-views.check_files_init()
+#views.check_files_init()
