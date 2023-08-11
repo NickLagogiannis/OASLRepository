@@ -1,0 +1,7 @@
+SELECT ?var2 ?var3 ?desc
+WHERE { 
+Service title ?var2
+Response schema ?schematest1
+Response description ?desc
+
+}

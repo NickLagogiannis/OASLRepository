@@ -1,0 +1,486 @@
+/*
+   Simple +/-/* expression language; 
+   parser evaluates constant expressions on the fly
+*/
+
+package cup.example;
+
+import java_cup.runtime.*;
+import cup.example.Lexer;
+import java.io.IOException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.HashSet; // Import the HashSet class
+import java.util.ArrayList;
+import java.nio.charset.Charset;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+
+
+
+parser code {:
+  protected Lexer lexer;
+  protected String inputText;
+  public	InputStream inputStream;
+ 
+
+
+	 public Parser(String inputText) {
+			super();
+			this.inputText = inputText;
+			inputStream = new ByteArrayInputStream(this.inputText.getBytes(Charset.forName("UTF-8")));
+		} 
+:}
+
+/* define how to connect to the scanner! */
+init with {:
+
+  ComplexSymbolFactory f = new ComplexSymbolFactory();
+  symbolFactory = f;
+
+			//String pathaNameCode = args[0];
+/*  File file = new File(inputText);
+ 		// File file = new File("input.txt");
+  FileInputStream fis = null;
+
+  try {
+    fis = new FileInputStream(file);
+  } catch (IOException e) {
+    e.printStackTrace();
+  } */
+  //lexer = new Lexer(f,fis);
+  lexer = new Lexer(f,inputStream);
+:};
+
+scan with {: return lexer.next_token(); :};
+
+action code {:
+	public static HashSet<String> schemaVars = new HashSet<String>();
+	public static HashSet<String> propertyVars = new HashSet<String>();
+	public static ArrayList<String> filterList = new ArrayList<String>();
+	public static HashSet<String> prefixNames = new HashSet<String>();
+	public static String schemaPropertyVar ="";
+	public static int compareVarsCount =0;
+	public static int varsCount =0;
+	
+	
+	
+	public String initialPrefixes(){
+
+
+		String pref="PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+		+"PREFIX owl: <http://www.w3.org/2002/07/owl#>\n"
+		+"PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
+		+"PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+		+"PREFIX myOnt: <https://www.example.com/service/petstore#> \n"
+		+"PREFIX openapi: <http://www.intelligence.tuc.gr/ns/open-api#>\n"
+		+"PREFIX sh:    <http://www.w3.org/ns/shacl#>\n";
+		
+		prefixNames.add("rdf");
+		prefixNames.add("owl");
+		prefixNames.add("xsd");	
+		prefixNames.add("rdfs");
+		prefixNames.add("myOnt");
+		prefixNames.add("openapi");
+		prefixNames.add("sh");
+
+		return pref;
+
+
+	}
+	public String schemaOrPropertySelect(String var) throws Exception {
+		
+		String sparqlCode ="";
+		if(schemaVars.contains(var)){
+			sparqlCode=var+" sh:targetClass ";
+		}
+		else if(propertyVars.contains(var)){
+			sparqlCode=var+" sh:path ";
+		}
+		else
+			throw new Exception("Neither Schema nor Property variable with name: "+var+" has not be declared.\n");
+		return sparqlCode;
+	}
+	public void addPrefix(String prefix) throws Exception{
+	
+		if (prefixNames.contains(prefix))
+			throw new Exception("Prefix : "+prefix+" is already used as keyword.");
+		prefixNames.add(prefix);
+	
+	}
+	public void checkPrefix(String prefix) throws Exception{
+	
+		if (!prefixNames.contains(prefix))
+			throw new Exception("Prefix expression: "+prefix+" is not defined.");
+
+	
+	}
+	public String unionHeaderSPARQL(){
+	
+	return "{?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation . \n?operation openapi:response ?response . \n?response openapi:responseHeader ?header . \n?header a openapi:Header . \n} \nUNION{\n?service openapi:supportedOperation ?operation .\n?operation a openapi:Operation . \n?operation openapi:requestHeader ?header . \n?header a openapi:Header .\n}";    
+
+	}
+
+	
+	public void addSchemaVariable(String s){
+		if(!schemaVars.contains(s))	
+			schemaVars.add(s);
+	}
+
+
+	public void addPropertyVariable(String s){
+		if(!propertyVars.contains(s))	
+			propertyVars.add(s); 
+	}
+
+	
+	public void validateVariable(String s) throws Exception{
+		if(!(propertyVars.contains(s)||schemaVars.contains(s)) )
+			throw new Exception("Neither Schema nor Property variable with name: "+s+" has not be declared.\n");
+			//throw new Exception("Schema variable "+s+" has not be declared.\n");
+			
+
+	}
+
+	public String compareClauseSave(String num1, String num2){
+		compareVarsCount++;
+		String varName="?compareVariable"+compareVarsCount;
+
+		String 	queryString ="FILTER ( STR("+varName+") >= \""+num1+"\" && STR("+varName+") <= \""+num2+"\" )\n";
+		filterList.add(queryString);
+
+		return " "+varName;
+	}
+	public String compareClauseSave2(String  num1 ,String compMethod){
+		compareVarsCount++;
+		String varName="?compareVariable"+compareVarsCount;
+
+		String 	queryString ="FILTER ( STR("+varName+") "+compMethod+" \""+num1+"\" )\n";
+		filterList.add(queryString);
+
+		return " "+varName;
+	}
+	public String writeFilterCode(){
+			String queryBuffer ="";
+			if(filterList.size() >0){
+				for(int i=0; i<filterList.size() ; i++){
+					queryBuffer+=filterList.get(i);//+" ";
+				}
+			}
+			filterList.clear();
+			return queryBuffer;
+	}
+
+:};
+
+/* Terminals (tokens returned by the scanner). */
+
+
+terminal             LPAR, RPAR, L_CULR_BRACK, R_CULR_BRACK ,COL , AGGR_TK , COMMA, DOT;
+terminal			 OR_KW , NOT_KW ,OPT_KW;
+terminal String		 COMPARATORS;
+terminal 			 BETWEEN_KW;
+
+terminal            WHERE_KW , OFFSET_KW , PREFIX_KW , SELECT_KW , LIMIT_KW, DISTINCT_KW;
+
+terminal            Response,Request,Service ,Server ,Security ,SecurityScope ,ResponseHeader , RequestHeader ,Header ,Parameter ,Schema ,Property_class, Tag ;
+
+terminal			title_property,ex_doc_url,ex_doc_desc, c_url , c_name , l_name , l_des, email , vers ;
+terminal 			url;
+terminal            sCodeRange, sCode , desc;
+terminal            property, minProperties, maxProperties, minLength, maxLength, type, maximum, minimum, minCount ,maxCount,dataType; 
+terminal            in , AKname , format , OpenIdConnectUrl , AuthUrl , RefreshUrl , TokenUrl , OAuth2flowType , securityType , scheme;  
+terminal            name , style , req , loc , emValue ,res ,depr ; /* for Header and parameters */
+terminal            method , path , schema_property , contentType , header_property , tag_property , summ , b_desc,opName; 
+
+terminal String     NUMBER;        
+terminal String     accepted_methods, resXX ,sec_types,styles,in_pos,common_types, flow_types ;
+terminal String		ORDER_KW;
+terminal String     string , BOOL , var, ident, uri;
+
+
+
+/* Non terminals */
+
+non terminal            where_clause,select_clause ,prefix_clause,query_order, offset_clause,limit_clause,order_by_clause;
+non terminal  String    variables;
+
+non terminal  String    triples , triple ,sequrity_scope_triple, server_triple ,response_triple ,header_triple,tag_triple,schema_triple,property_triple;
+non terminal  String  	service_triple,sequrity_triple, request_triple , request_header_triple, response_header_triple , parameter_triple;
+
+non terminal  String 	common_schema_property_sub ,common_schema_property_triple;
+non terminal  String    accepted_method_ans,schema_property_obj ,property_obj , res_code_range ,string_type, common_obj ,sequrity_type_obj,flow_type_obj;
+non terminal  String    num,strnum;    
+ 
+
+query_order ::= prefix_clause:e1 select_clause:e2 where_clause:e3 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n");:}
+				| select_clause:e1 where_clause:e2 {:System.out.println(initialPrefixes()+e1+"\n"+e2+" \n");:}
+				| select_clause:e1 where_clause:e2 offset_clause:e3 limit_clause:e4 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+" \n");:}
+				| select_clause:e1 where_clause:e2  limit_clause:e3 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+" \n");:}
+				//| select_clause:e1 where_clause:e2 offset_clause:e3 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+" \n");:}
+				
+				| prefix_clause:e1 select_clause:e2 where_clause:e3 offset_clause:e4 limit_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				| prefix_clause:e1 select_clause:e2 where_clause:e3  limit_clause:e4 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+" \n");:}
+				//| prefix_clause:e1 select_clause:e2 where_clause:e3 offset_clause:e4 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+" \n");:}
+				
+				| select_clause:e1 where_clause:e2 order_by_clause:e3 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+" \n");:}
+				//| select_clause:e1 where_clause:e2 offset_clause:e3 limit_clause:e4 order_by_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				| select_clause:e1 where_clause:e2 offset_clause:e3 order_by_clause:e4 limit_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				
+				|// select_clause:e1 where_clause:e2 limit_clause:e3 offset_clause:e4 order_by_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				//| select_clause:e1 where_clause:e2 limit_clause:e3 order_by_clause:e4 offset_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				| select_clause:e1 where_clause:e2 order_by_clause:e3 offset_clause:e4 limit_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				| select_clause:e1 where_clause:e2 order_by_clause:e3 limit_clause:e4 offset_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				
+				//| select_clause:e1 where_clause:e2  limit_clause:e3 order_by_clause:e4 							{:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+" \n");:}
+				| select_clause:e1 where_clause:e2  limit_clause:e3 offset_clause:e4 							{:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+" \n");:}
+				
+				| select_clause:e1 where_clause:e2  order_by_clause:e3 limit_clause:e4 							{:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+" \n");:}
+				| select_clause:e1 where_clause:e2  order_by_clause:e3 offset_clause:e4 	
+				
+				//| select_clause:e1 where_clause:e2 offset_clause:e3 order_by_clause:e4 								{:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+" \n");:}
+				
+				//| prefix_clause:e1 select_clause:e2 where_clause:e3 offset_clause:e4 limit_clause:e5 order_by_clause:e6  {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+"\n"+e6+" \n");:}
+				//| prefix_clause:e1 select_clause:e2 where_clause:e3 offset_clause:e4 order_by_clause:e5 limit_clause:e6  {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+"\n"+e6+" \n");:}
+				
+				//| prefix_clause:e1 select_clause:e2 where_clause:e3 limit_clause:e4 offset_clause:e5 order_by_clause:e6   {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+"\n"+e6+" \n");:}
+				//| prefix_clause:e1 select_clause:e2 where_clause:e3 limit_clause:e4 order_by_clause:e5 offset_clause:e6  {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+"\n"+e6+" \n");:}
+				| prefix_clause:e1 select_clause:e2 where_clause:e3 order_by_clause:e4 offset_clause:e5 limit_clause:e6 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+"\n"+e6+" \n");:}
+				| prefix_clause:e1 select_clause:e2 where_clause:e3 order_by_clause:e4 limit_clause:e5 offset_clause:e6 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+"\n"+e6+" \n");:}
+				//| prefix_clause:e1 select_clause:e2 where_clause:e3  limit_clause:e4 order_by_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				| prefix_clause:e1 select_clause:e2 where_clause:e3  limit_clause:e4 offset_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+
+				| prefix_clause:e1 select_clause:e2 where_clause:e3  order_by_clause:e4 limit_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				| prefix_clause:e1 select_clause:e2 where_clause:e3  order_by_clause:e4 offset_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				//| prefix_clause:e1 select_clause:e2 where_clause:e3 offset_clause:e4 order_by_clause:e5 {:System.out.println(initialPrefixes()+e1+"\n"+e2+"\n"+e3+"\n"+e4+"\n"+e5+" \n");:}
+				;
+				
+				
+				
+				
+prefix_clause	::= PREFIX_KW ident:e1 COL uri:e2  {:addPrefix(e1);RESULT ="PREFIX "+e1+": "+e2+"\n";:}
+				| PREFIX_KW ident:e1 COL uri:e2  prefix_clause:e3 {:addPrefix(e1);RESULT ="PREFIX "+e1+": "+e2+"\n"+e3;:}
+				;
+				
+select_clause ::= SELECT_KW  variables:e {:initialPrefixes();RESULT = "SELECT "+e;:}
+				| SELECT_KW DISTINCT_KW  variables:e {:initialPrefixes();RESULT = "SELECT DISTINCT "+e;:}
+				| SELECT_KW AGGR_TK {:initialPrefixes();RESULT = "SELECT *";:}  
+				;
+order_by_clause ::= ORDER_KW:e1 var:e2 	{:/*TODO check if variable is accepted*/ RESULT = e1+" ("+e2+")";:}
+				;
+variables ::= var:e		{:RESULT= e;:}
+			| var:e1  variables:e2 {:RESULT= e1+" "+e2;:} 
+			;
+
+where_clause ::= WHERE_KW L_CULR_BRACK  triples:e R_CULR_BRACK    {: RESULT ="WHERE { \n?service a openapi:Document .\n"+e+"\n }"; :}
+							;
+triple ::=  service_triple:e DOT							{:RESULT=(e+" .\n"+writeFilterCode()); :}
+			| sequrity_triple:e	DOT						{:RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| response_triple:e  DOT						{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| request_triple:e	DOT						{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| tag_triple:e		DOT						{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| schema_triple:e	DOT						{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| property_triple:e	DOT						{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| parameter_triple:e	DOT					{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| server_triple:e		DOT					{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| sequrity_scope_triple:e	DOT				{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| response_header_triple:e	DOT				{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| header_triple:e		DOT					{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| request_header_triple:e	DOT				{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		| common_schema_property_triple:e	DOT		{: RESULT=(e+" .\n"+writeFilterCode()); :}
+      		;
+triples ::= triple:e  {:RESULT=e;  :}	
+		|  triple:e1 triples:e2{:RESULT=e1+e2; :}
+		|  L_CULR_BRACK triples:e2 R_CULR_BRACK OR_KW  L_CULR_BRACK triples:e3 R_CULR_BRACK   {:RESULT="{\n"+e2+"}\n UNION {\n"+e3+"}\n"; :}
+		|  L_CULR_BRACK triples:e1 R_CULR_BRACK OR_KW  L_CULR_BRACK triples:e2 R_CULR_BRACK  triples:e3 {:RESULT="{\n"+e1+"}\n UNION {\n"+e2+"}\n"+e3; :}
+		|  NOT_KW L_CULR_BRACK triple:e1 R_CULR_BRACK triples:e2 {:RESULT="NOT { "+e1+"}\n"+e2; :}
+		|  OPT_KW L_CULR_BRACK triple:e1 R_CULR_BRACK triples:e2 {:RESULT="OPTIONAL { "+e1+"}\n"+e2; :}
+		|  NOT_KW L_CULR_BRACK triple:e1 R_CULR_BRACK {:RESULT="NOT { "+e1+"}\n"; :}
+		|  OPT_KW L_CULR_BRACK triple:e1 R_CULR_BRACK  {:RESULT="OPTIONAL { "+e1+"}\n"; :}
+			;
+
+ 
+
+accepted_method_ans ::= accepted_methods:e {:RESULT = "openapi:"+e; :}
+          ;		
+		
+
+service_triple ::= Service title_property common_obj:e  {:RESULT = "?service openapi:info ?info . \n?info openapi:serviceTitle "+e  ;  :}
+				|Service desc common_obj:e {:RESULT = "?service openapi:description "+e;:}
+				|Service email common_obj:e {:RESULT = "?info openapi:contact ?con .\n?con openapi:email "+e;:}
+				|Service ex_doc_url common_obj:e {:RESULT = "?service openapi:externalDoc ?extDoc .\n?extDoc openapi:url"+e;:}
+				|Service ex_doc_desc common_obj:e {:RESULT = "?service openapi:externalDoc ?extDoc .\n?extDoc openapi:description "+e;:}
+				|Service c_url common_obj:e {:RESULT = "?service openapi:info ?info . \n?info openapi:contact ?con .\n?con openapi:url "+e;:}
+				|Service c_name common_obj:e  {:RESULT = "?service openapi:info ?info . \n?info openapi:contact ?con .\n?con openapi:name "+e;:}
+				|Service vers common_obj:e  {:RESULT = "?service openapi:version "+e;:}	
+				|Service l_name common_obj:e {:RESULT = "?service openapi:info ?info . \n?info openapi:liscense ?lic .\n?lic openapi:name "+e;:}
+				|Service l_des common_obj:e {:RESULT ="?service openapi:info ?info . \n?info openapi:liscense ?lic .\n?lic openapi:description "+e; :}
+				;
+				
+request_triple ::= Request method accepted_method_ans:e  	{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:method "+e;:}
+				|Request method var:e  						{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:method "+e;:}
+				|Request path common_obj:e  				{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:onPath  ?op_onPath .\n?op_onPath openapi:pathName "+e;:} 
+				|Request opName common_obj:e  				{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:name "+e;:}
+				|Request schema_property schema_property_obj:e   {:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:requestBody ?body .\n{?body openapi:requestBodyCotent ?b_con .}\nUNION{?body openapi:content ?b_con .}\n?b_con openapi:schema "+e;:}
+				|Request contentType  common_obj:e  	{:RESULT = "?operation openapi:requestBody ?body . \n"+"{?body openapi:requestBodyCotent ?b_con .}\nUNION{?body openapi:content ?b_con .}\n?b_con openapi:mediaTypeName"+e;:}
+				|Request tag_property common_obj:e   	{: RESULT="?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:tag ?tag. \n?tag openapi:name "+e ; :}
+				|Request summ common_obj:e   			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:summary "+e;:}
+				|Request b_desc common_obj:e  			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:requestBody ?body .\n?body openapi:description "+e; :}
+				|Request ex_doc_url common_obj:e 		{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:externalDoc ?extDoc \n?extDoc openapi:url "+e;:}
+				|Request ex_doc_desc common_obj:e 		{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation a openapi:Operation .\n?operation openapi:externalDoc ?extDoc \n?extDoc openapi:description "+e;:}
+				
+
+;
+parameter_triple ::= Parameter name	common_obj:e 					{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter openapi:name "+e;:}
+				|Parameter req	BOOL:e 								{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter openapi:required "+e;:}
+				|Parameter schema_property	schema_property_obj:e 	{:RESULT="?operation openapi:parameter ?parameter .\n?parameter openapi:schema "+e;:}
+				|Parameter desc	common_obj:e 						{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter openapi:description "+e;:}
+				|Parameter style	styles:e 						{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter openapi:style "+e;:}
+				|Parameter emValue	BOOL:e 							{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter openapi:allowEmptyValue "+e;:}
+				|Parameter depr	BOOL:e 								{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter openapi:deprecated "+e;:}
+				|Parameter res	BOOL:e 								{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter openapi:allowReserved "+e;:}
+				|Parameter loc	in_pos:e 							{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter a openapi:"+e;:}
+				|Parameter loc	var:e 								{:RESULT = "?operation openapi:parameter ?parameter .\n?parameter a "+e;:}
+;
+
+tag_triple	::=  Tag name common_obj:e {:RESULT ="?tag a openapi:Tag .\n?tag openapi:name "+e;:}
+				|Tag desc common_obj:e {:RESULT ="?tag a openapi:Tag .\n?tag openapi:description "+e;:}
+				|Tag ex_doc_url common_obj:e {:RESULT ="?tag a openapi:Tag .\n?tag openapi:externalDoc ?tag_extDoc .\n?tag_extDoc openapi:url "+e;:}
+				|Tag ex_doc_desc common_obj:e {:RESULT ="?tag a openapi:Tag .\n?tag openapi:externalDoc ?tag_extDoc .\n?tag_extDoc openapi:descriprtion "+e;:}
+				;
+server_triple ::= Server url common_obj:e {:RESULT = "?service openapi:supportedOperation ?operation . \n?operation  openapi:serverInfo      ?server .\n?server a   openapi:Server .\n?server openapi:host "+e;:}
+				| Server desc common_obj:e {:RESULT = "?service openapi:supportedOperation ?operation . \n?operation  openapi:serverInfo      ?server .\n?server a   openapi:Server .\n?server openapi:description "+e;:}
+				;
+sequrity_scope_triple ::= SecurityScope name common_obj:e 	{:RESULT = "?security_scope a openapi:Scope .\n?security_scope openapi:name"+e;:}
+				| SecurityScope desc common_obj:e	 		{:RESULT = "?security_scope a openapi:Scope .\n?security_scope openapi:description"+e;:}
+				;							
+				
+sequrity_triple ::= Security in common_obj:e 			{:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:ApiKey .\n?security openapi:in "+e;:}
+				|Security AKname common_obj:e 			{:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:ApiKey .\n?security openapi:name "+e;:}
+				|Security format common_obj:e 			{:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:Http .\n?security openapi:bearerFormat "+e;:}
+				|Security scheme common_obj:e 			{:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:Http .\n?security openapi:scheme "+e;:}
+				|Security OpenIdConnectUrl common_obj:e {:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:OpenIdConnect .\n?security openapi:openIdConnectUrl "+e;:}
+				|Security AuthUrl common_obj:e 			{:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:OAuth2  .\n?security openapi:flow ?flow .\n?flow openapi:authorizationUrl "+e;:}
+				|Security RefreshUrl common_obj:e 		{:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:OAuth2  .\n?security openapi:flow ?flow .\n?flow openapi:refreshUrl "+e;:}	
+				|Security TokenUrl common_obj:e 		{:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:OAuth2  .\n?security openapi:flow ?flow .\n?flow openapi:tokenUrl "+e;:}
+				|Security securityType sequrity_type_obj:e {:RESULT ="?service openapi:supportedSecurity ?security .\n?security a "+e;:}	
+				|Security OAuth2flowType flow_type_obj:e {:RESULT ="?service openapi:supportedSecurity ?security .\n?security a openapi:OAuth2  .\n?security openapi:flow "+e;:}		
+;
+
+
+schema_triple ::= common_schema_property_sub:e1 property property_obj:e2	 	{:RESULT = e1+" sh:property "+e2;:} 
+				| common_schema_property_sub:e1 title_property common_obj:e2	{:RESULT = e1+" rdfs:label "+e2+"NodeShape";:}	
+				| common_schema_property_sub:e1 minProperties num:e2	 		{:RESULT = e1+" sh:minProperties "+e2;:}	
+				| common_schema_property_sub:e1 minProperties var:e2			{:RESULT =e1+" sh:minProperties "+e2;:}	
+				| common_schema_property_sub:e1 maxProperties num:e2			{:RESULT = e1+" sh:maxProperties "+e2;:}	
+				| common_schema_property_sub:e1 maxProperties var:e2			{:RESULT = e1+" sh:maxProperties "+e2;:}
+				| Schema type	common_obj:e2	 								{:RESULT="?service openapi:supportedEntity "+"?node_shape"+" .\n"+"?node_shape a        sh:NodeShape .\n"+"?node_shape sh:targetClass "+e2 ;:}		
+				; 
+					 
+property_triple ::= common_schema_property_sub:e1 name common_obj:e2		{:RESULT =e1+" openapi:name "+e2;:}		
+				| Property_class type		common_obj:e1					{:RESULT = "?service openapi:supportedEntity ?node_shape .\n?node_shape         sh:property       ?property_shape .\n?property_shape sh:path "+e1;:}		
+				;
+
+common_schema_property_triple ::= common_schema_property_sub:e1 minLength num:e2			{:RESULT =e1+" sh:minLength "+e2;:}	
+				| common_schema_property_sub:e1 dataType common_types:e2  	{:RESULT =e1+" sh:datatype xsd:"+e2;:}
+				| common_schema_property_sub:e1 minLength var:e2			{:RESULT =e1+" sh:minLength "+e2;:}	
+				| common_schema_property_sub:e1 maxLength num:e2			{:RESULT =e1+" sh:maxLength "+e2;:}	
+				| common_schema_property_sub:e1 maxLength var:e2			{:RESULT =e1+" sh:maxLength "+e2;:}	
+				| common_schema_property_sub:e1 minCount num:e2				{:RESULT = e1+" sh:minCount "+e2;:}		
+				| common_schema_property_sub:e1 minCount var:e2				{:RESULT = e1+" sh:minCount "+e2; :}	
+				| common_schema_property_sub:e1 maxCount num:e2				{:RESULT = e1+" sh:maxCount "+e2;:}
+				| common_schema_property_sub:e1 maxCount var:e2				{:RESULT = e1+" sh:maxCount "+e2;:}	
+				| common_schema_property_sub:e1 minimum num:e2				{:RESULT =e1+" sh:minimum "+e2;:}		
+				| common_schema_property_sub:e1 minimum var:e2				{:RESULT =e1+" sh:minimum "+e2;:}	
+				| common_schema_property_sub:e1 maximum num:e2				{:RESULT =e1+" sh:maximum "+e2;:}		
+				| common_schema_property_sub:e1 maximum var:e2				{:RESULT =e1+" sh:maximum "+e2;:}	
+				| common_schema_property_sub:e1 desc common_obj:e2			{:RESULT =e1+" openapi:description "+e2;:}
+				| var:e1 type	common_obj:e2								{:RESULT=schemaOrPropertySelect(e1)+" "+e2;:}				
+				;
+				
+
+common_schema_property_sub ::=  Schema {:RESULT ="?service openapi:supportedEntity ?node_shape .\n ?node_shape ";:}
+							| Property_class {:RESULT = "?service openapi:supportedEntity ?node_shape .\n?node_shape         sh:property          ?property_shape .\n?property_shape";:}
+							| var:e {:validateVariable(""+e);RESULT=e;:}
+
+;
+
+response_header_triple	::= ResponseHeader name common_obj:e 	{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:responseHeader ?response_header .\n?response_header openapi:name "+e;:}
+				|	ResponseHeader desc common_obj:e			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:responseHeader ?response_header .\n?response_header openapi:description "+e;:}
+				|	ResponseHeader req	common_obj:e 			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:responseHeader ?response_header .\n?response_header openapi:required "+e;:}
+				| 	ResponseHeader depr	common_obj:e			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:responseHeader ?response_header .\n?response_header openapi:deprecated"+e;:}
+				|	ResponseHeader emValue common_obj:e 		{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:responseHeader ?response_header .\n?response_header openapi:allowEmptyValue "+e;:}
+				|	ResponseHeader style styles:e 				{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:responseHeader ?response_header .\n?response_header openapi:style openapi:"+e;:}
+				|	ResponseHeader schema_property schema_property_obj:e {:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:responseHeader ?response_header .\n?response_header openapi:schema "+e;:}
+
+				;
+request_header_triple::= RequestHeader name common_obj:e 			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:requestHeader ?request_header .\n?request_header openapi:name "+e;:}
+				|	RequestHeader desc common_obj:e				{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:requestHeader ?request_header .\n?request_header openapi:description "+e;:}
+				|	RequestHeader req	common_obj:e 			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:requestHeader ?request_header .\n?request_header openapi:required "+e;:}
+				| 	RequestHeader depr	common_obj:e			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:requestHeader ?request_header .\n?request_header openapi:deprecated "+e;:}
+				|	RequestHeader emValue common_obj:e 			{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:requestHeader ?request_header .\n?request_header openapi:allowEmptyValue "+e;:}
+				|	RequestHeader style styles:e 				{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:requestHeader ?request_header .\n?request_header openapi:style openapi:"+e;:}
+				|	RequestHeader schema_property schema_property_obj:e 	{:RESULT = "?service openapi:supportedOperation ?operation . \n?operation openapi:requestHeader ?request_header .\n?response_header openapi:schema "+e;:}
+
+				;
+header_triple    ::= Header name common_obj:e 				{:RESULT = unionHeaderSPARQL()+"?header openapi:name "+e;:}
+				| Header desc common_obj:e					{:RESULT = unionHeaderSPARQL()+"?header openapi:description "+e;:}
+				| Header req	common_obj:e 				{:RESULT = unionHeaderSPARQL()+"?header openapi:required "+e;:}
+				| Header depr	common_obj:e 				{:RESULT = unionHeaderSPARQL()+"?header openapi:deprecated"+e;:}
+				| Header emValue common_obj:e 				{:RESULT = unionHeaderSPARQL()+"?header openapi:allowEmptyValue "+e;:}
+				| Header style styles:e 					{:RESULT = unionHeaderSPARQL()+"?header openapi:style openapi:"+e;:}
+				|Header schema_property schema_property_obj:e 		{:RESULT = unionHeaderSPARQL()+"?header openapi:schema "+e;:} 
+				;
+response_triple ::= Response sCodeRange res_code_range:e      		{: RESULT="?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response a openapi:"+e+"Response"; :}
+                |Response sCodeRange  var:e    	  					{: RESULT="?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response a openapi:"+e+"Response"; :}
+                |Response sCode strnum:e      	   						{: RESULT="?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:statusCode "+e; :}
+                |Response sCode var:e       	   					{: RESULT="?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:statusCode "+e; :}
+                |Response schema_property schema_property_obj:e     {: RESULT="?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:content ?r_con .\n?r_con openapi:schema "+e; :} //MAYBE NEED TO ADD A UNION AS REQUEST BODY CONTENT
+                |Response desc common_obj:e      	   					{: RESULT="?service openapi:supportedOperation ?operation . \n?operation openapi:response ?response .\n?response openapi:description "+e; :}
+				;
+
+common_obj ::= string_type:e 			{:RESULT = e ;:}
+			| var:e   		 			{:RESULT = e ;:}
+			| uri:e			 			{:RESULT = e ;:}
+			| ident:e1 COL ident:e2		{:checkPrefix(e1);RESULT = e1+":"+e2 ;:}
+			;
+schema_property_obj ::= string_type:e 	{:varsCount++;RESULT = "?stringTypeProp"+varsCount+" .\n"+"?stringTypeProp"+varsCount+" a        sh:NodeShape .\n"+"?stringTypeProp"+varsCount+" rdfs:label "+e ;:}
+			| var:e   					{:addSchemaVariable(""+e);RESULT = e ;:}
+			| common_types:e  			{:varsCount++;RESULT = "?commonTypeProp"+varsCount+" .\n"+"?commonTypeProp"+varsCount+" sh:datatype  xsd:"+e ;:}
+			| uri:e			 			{:RESULT = e ;:}
+			| ident:e1 COL ident:e2		{:checkPrefix(e1);varsCount++;RESULT = "?schemaTypeProp"+varsCount+" .\n"+"?schemaTypeProp"+varsCount+" a        sh:NodeShape .\n"+"?schemaTypeProp"+varsCount+" sh:targetClass "+e1+":"+e2 ;:}	
+			; 
+
+property_obj ::= string_type:e 			{:varsCount++;RESULT = "?stringTypeProp"+varsCount+" .\n"+"?stringTypeProp"+varsCount+" a     sh:PropertyShape.\n"+"?stringTypeProp"+varsCount+" openapi:name "+e;:}
+			| var:e   					{:addPropertyVariable(""+e);RESULT = e ;:}
+			| uri:e			 			{:RESULT = " sh:path "+e;:}
+			| ident:e1 COL ident:e2		{:checkPrefix(e1);RESULT = e1+":"+e2 ;:}	
+			;
+sequrity_type_obj ::= sec_types:e {:RESULT = "openapi:"+e ;:}
+					|var:e {:RESULT = e ;:}
+					;
+flow_type_obj ::= flow_types:e {:RESULT = "?flow\n . ?flow a openapi:"+e ;:}
+					|var:e {:RESULT = e ;:}
+					;
+
+res_code_range  ::=	resXX:e   	{:RESULT = "openapi:"+e; :}
+
+				;
+string_type 	::=	string:e {:RESULT =e;:}
+        ;	
+num ::= NUMBER:e 		 								  {:RESULT =e;:}	
+		| BETWEEN_KW LPAR NUMBER:e1 COMMA NUMBER:e2 RPAR  {:RESULT= compareClauseSave(e1,e2);:}
+		| COMPARATORS:e1 NUMBER:e2  					  {:RESULT= compareClauseSave2(e2,e1);:}
+		;
+strnum ::= NUMBER:e 		 								  {:RESULT ="\""+e+"\"";:}	
+		| BETWEEN_KW LPAR NUMBER:e1 COMMA NUMBER:e2 RPAR  {:RESULT= compareClauseSave(e1,e2);:}
+		| COMPARATORS:e1 NUMBER:e2  					  {:RESULT= compareClauseSave2(e2,e1);:}
+		;
+
+limit_clause ::= LIMIT_KW num:e	{:RESULT="LIMIT "+e;:}
+;
+
+offset_clause ::= OFFSET_KW num:e	{:RESULT="OFFSET "+e;:}
+;
+
+       
