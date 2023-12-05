@@ -8,7 +8,7 @@ the user to be familiar with the peculiarities of the ontology.
 The OpenAPI SPARQL Language (OASL), is an RDF query language for OpenAPI semantic descriptions. To formulate an OASL query, a user needs only
 a basic understanding of SPARQL and no knowledge of the OpenAPI ontology. OASL builds on top of SPARQL and simplifies query complexity,
 so even highly complex SPARQL queries can be expressed using only a few
-OASL statements. The web service consists of UI built using Flask , the OASL compiler in JAR files and a Virtuoso database. Both of them are executing using docker containers.
+OASL statements. The web service consists of UI built using Flask , the OASL compiler in JAR files and a Virtuoso database. Both of them are executed using docker containers.
 
 
 ## Installation
@@ -21,21 +21,21 @@ OASL statements. The web service consists of UI built using Flask , the OASL com
   
        docker-compose up --build
     
-When the building process is completed you are able to acsess the site.
+When the building process is complete you are able to access the site.
 
 ## Usage Description
 ***
-In order to use this app you have to accsess to port **8085**
+In order to use this app you have to access to port **8085**
 
  | Path                | Returns      |                                                                                                                   
 |---------------------|--------------------------------------------------------------------------------------|
-| /                   | A simple home page giving instructions about the other tabs and how to use them.|
-| /upload             | Redirects to the page where you can uplload the openAPI files in ttl format. **Select File** opens a window to check wich files you want to upload, then press the **Upload** button and after the uploading is completed, returns the number of files where they uploaded.|
+| /                   | A simple home page giving instructions about all the other tabs and how to use them.|
+| /upload             | Redirects to the page where you can uplload the openAPI files in ttl format. **Select File** opens a window to check which files you want to upload, then press the **Upload** button and after the uploading is completed, returns the number of files where they uploaded.|
 | /instructions       | Contains a PDF file with all the available triples you can query.|
-| /execute            | This tab contains a placeholder where you can write the OASL code. By pressing **Submit** button , return in tabular format the expected results. In case of an error syntax, returns an appropriate message. |
+| /execute            | This tab contains a placeholder where you can write the OASL code. By pressing the Submit button ,it returns in tabular format the expected results. In case of an error syntax, it returns an appropriate message. |
 
 
-## Refrences
+## References
 ***
 
 * Nikolaos Lagogiannis, Nikolaos Mainas, Chrisa Tsinaraki, and
