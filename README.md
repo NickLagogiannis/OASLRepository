@@ -1,4 +1,4 @@
-# OASLRepository
+# Open API SPARQL Language (OASL) Web Service
 OpenAPI descriptions detail the actions exposed by REST APIs in
 YAML or JSON syntax. The semantics of valid OpenAPI descriptions can be
 further exploited if they can be mapped to an OpenAPI ontology, as we have
